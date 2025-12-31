@@ -1,40 +1,43 @@
-# Program to send bulk messages through WhatsApp web from an excel sheet without saving contact numbers
-# Author @inforkgodara
-
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service # Ajouté
 from webdriver_manager.chrome import ChromeDriverManager
 from time import sleep
 import pandas
 
+# Chargement des données
 excel_data = pandas.read_excel('Recipients data.xlsx', sheet_name='Recipients')
 
-count = 0
+# Initialisation moderne du driver
+service = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=service)
 
-driver = webdriver.Chrome(ChromeDriverManager().install())
 driver.get('https://web.whatsapp.com')
-input("Press ENTER after login into Whatsapp Web and your chats are visiable.")
-for column in excel_data['Contact'].tolist():
+input("Appuyez sur ENTRÉE après vous être connecté à WhatsApp Web et que vos messages soient visibles.")
+
+# On parcourt les contacts et les messages
+for contact, message in zip(excel_data['Contact'], excel_data['Message']):
     try:
-        url = 'https://web.whatsapp.com/send?phone={}&text={}'.format(excel_data['Contact'][count], excel_data['Message'][0])
-        sent = False
-        # It tries 3 times to send a message in case if there any error occurred
+        url = f'https://web.whatsapp.com/send?phone={contact}&text={message}'
         driver.get(url)
+        
         try:
+            # Note: Les noms de classes comme '_3XKXx' changent souvent sur WhatsApp.
+            # Si le script bloque ici, il faudra inspecter le bouton "Envoyer" sur votre navigateur.
             click_btn = WebDriverWait(driver, 35).until(
-                EC.element_to_be_clickable((By.CLASS_NAME, '_3XKXx')))
-        except Exception as e:
-            print("Sorry message could not sent to " + str(excel_data['Contact'][count]))
-        else:
+                EC.element_to_be_clickable((By.XPATH, '//span[@data-icon="send"]'))
+            )
             sleep(2)
             click_btn.click()
-            sent = True
             sleep(5)
-            print('Message sent to: ' + str(excel_data['Contact'][count]))
-        count = count + 1
+            print(f'Message envoyé à : {contact}')
+        except Exception as e:
+            print(f"Désolé, le message n'a pas pu être envoyé à {contact}")
+            
     except Exception as e:
-        print('Failed to send message to ' + str(excel_data['Contact'][count]) + str(e))
+        print(f'Erreur avec le contact {contact} : {str(e)}')
+
 driver.quit()
-print("The script executed successfully.")
+print("Le script s'est exécuté avec succès.")
